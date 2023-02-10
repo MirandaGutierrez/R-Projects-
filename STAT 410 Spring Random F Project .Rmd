@@ -1,0 +1,234 @@
+---
+title: "new updated"
+author: "Miranda Gutierrez"
+date: "5/9/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(randomForest)
+library(caret)
+library(party)
+library(readr)
+
+input <- ("Home/Desktop/STAT 410 Spring 2022/410 Project Baseball")
+list.files(input)
+```
+
+ Project Topic Submission: Random Forest 
+Introduction and Motivation
+ Can performance statistic predict if salary will go up by a million using Logistic regression vs using Random Forrest.
+Using a Logistic Regression vs Random Forrest, did the salary go up by million dollars and what are the variables that contributed to this. I had to change many of the variables and change my logistic regression in order to better fit. It was giving a false positive and that is not what I wanted for my project, because it would just be assumed well its going to go up no matter what the years are , logically it wouldn't make sense for a players salary to go down one year since they do get better 
+overtime. 
+
+Data Science Method/Illustrative Example
+The method that I decided to use is Random Forrest,it is the decisions of the trees that come together in order to produce the predictions
+for the structure of the data.When you're growing your trees you see the prediction, I have made a RF prediction but the code is very long
+takes a while to load on the computer why it is in #, but if you run the code you see how there is so many trees with the predictions
+it is hard to tell them apart since there is so many.
+
+
+
+ For this I am reading my CSV data, I had to add another set of data set from the day we met
+in order to fix my model from increasing to if they will make a million. 
+```{r}
+players <- read_csv('Master.csv')
+batting <- read_csv('Batting.csv')
+salaries <- read_csv('Salaries.csv') %>% 
+  filter(yearID >= 2000) %>% 
+  group_by(playerID) %>% 
+  mutate(million = ifelse( salary>= 1000000, 1, 0))
+fielding <- read_csv('fielding.csv') %>%
+  select(playerID, yearID, POS)%>%
+  group_by(yearID,playerID)%>%slice(1)
+
+range(salaries$salary,na.rm = TRUE)
+
+salaries %>% count(playerID)  %>% arrange(desc(n))
+
+```
+#using the slice method for the fielding, positions that a baseball player has
+#some of the variables that I used were the playerID,yearID as well as POS.
+
+
+
+```{r}
+#select players in data more than 3 times
+players3plus <- salaries %>% count(playerID) %>% 
+  filter(n >=3) %>% pull(playerID)
+```
+
+```{r}
+#view stats for one player
+salaries %>% filter(playerID == 'moyerja01') %>% 
+  print(n = 30)
+
+range(salaries$yearID)
+
+salaries %>% 
+  arrange(playerID, yearID) %>% View()
+```
+#put together full dataset
+
+#Here I put the new data set together in order to see the salaries, players and batting as well
+#as the fielding which in that case would be the positions. Putting it together I had to go back
+#and change from increasing to millions as well as adding the new data set for this full player data.
+```{r}
+full_player_data <- salaries %>% inner_join(players) %>% inner_join(batting) %>% 
+  inner_join(fielding)%>%
+  filter(playerID %in% players3plus,
+         !is.na(million)) %>% 
+  mutate(bAV = H/AB)%>%
+  mutate(difH = H - lag(H, 1),
+         difR = R - lag(R, 1),
+         difRBI = RBI - lag(RBI, 1),
+         difAv = bAV - lag(bAV)) %>% 
+  filter(!is.na(difRBI)) 
+  #select(million, difH, difR, difRBI, bAV, difAv,
+        #weight) %>% 
+  
+```
+
+#After putting the data set together I had to go back again to make it more accurate and change it from
+#increase to million when it came to the whole code in order to see if it will go up. Some of the 
+#factors I choose were those like H,HR,3B YearID,bAV,POS. I had get another data set which I did not have 
+#previously when I showed you because it was so high and needed a better simple logistic regression model.
+```{r}
+#simple logistic regression
+model1 <- glm(million ~ H +HR+RBI+`3B`+yearID+bAV+POS, family = 'binomial', data = full_player_data)
+model2 <- glm(million ~ difH+difAv+difRBI+weight , family = 'binomial', data = full_player_data)
+
+
+
+#model 1 results
+summary(model1)
+
+summary(model2)
+
+
+```
+
+#model 1 results
+#Looking at this I used the variables for this model  H + HR + RBI + `3B` + yearID + bAV + 
+#POS when using this I see how those that have more stars ** on them are more significant 
+# since they play a big impact on if those will have their salary increase to a million instead of it being just increased which creates 
+#this fake false positive that it will always increase, since logically it will increase for the most part.
+# It makes sense that those who makes hits and home runs which are (H) and (HR) are the ones 
+#that are significant because if you're doing well you will most likely get paid more and take this into account.
+#Other factors that are also taken into account are POSF POSRF as well as POSSS which are the positions,
+#this is also important since it matters which positions you play which can determine how well you're 
+#doing and overall how the lineup is when teams put their players to play. Overall it has a big impact on 
+#this model 1. The number of Fisher scoring for this was 5. 
+
+#model 2 results
+#The second model was a little bit different when it came to pick the different variables.
+#For this one I choose ifH + difAv + difRBI + weight which is  more of the percentage in the infield for the first variables
+#the second variable is the total number of runs that has allowed from the number of runs it has scored.
+# The third variable, which is run battled in and lastly the weight, how much weight does a player weight.
+#Out of all of this we see that difH, weight and difRBI have the significant impact when it comes to this model
+#it makes sense why they are since it is important to see how they are doing when it comes to their performance 
+#overall it is a team sport but each person has their stats and those are some of the important stats 
+#that are taken into consideration in order to determine is a player "good" and will their salary increase to a million
+#which is what I am trying to figure out with my model. Overall for this model 2 it was a number of Fisher scoring of 4.
+
+```{r}
+
+#generate predictions
+full_player_data$prediction_logit <- predict(model1, full_player_data, type = 'response')
+
+# We see that it is 3223 0 and 6077 1 from the prediction of model1.
+full_player_data$prediction_logit <- ifelse(full_player_data$prediction_logit >=.5, 1, 0)
+
+table(full_player_data$million)
+table(full_player_data$prediction_logit)
+
+#In the table full prediction og logit it gives a different number it is 0 1068 and 1 6398.
+
+
+#model confusion matrix
+confusionMatrix(data = as.factor(full_player_data$prediction_logit),
+                reference = as.factor(full_player_data$million))
+
+
+
+
+
+
+
+filter(!is.na(million),
+       !is.na(H),
+       !is.na(HR),
+       !is.na(RBI),
+       !is.na(`3B`),
+       !is.na(yearID),
+       !is.na(bAV),
+       !is.na(POS))
+
+rfModel1 <- randomForest(as.factor (million) ~ H +HR+RBI+yearID+bAV+POS,  data = full_player_data[1:4000,])
+#The plot shows the three lines where they do not meet and see the how the trees from the green lines are 
+#up and they go down as well as the black line going down and the red line is constant and stays the same for the
+#rfModel1
+
+full_player_test <- full_player_data[4001:5886,]
+
+#generate predictions
+full_player_test$prediction_rf <- predict(rfModel1, full_player_test)
+ full_player_data$prediction <- ifelse(full_player_data$prediction >=.5, 1, 0)
+
+
+table(full_player_test$million)
+table(full_player_test$prediction_rf)
+```
+#The table of full player prediction is that 0 616 and 1 is 1270.The test prediction shows that
+# it will be 0 230 and 1 willHere we see that it is going to be at 70.25% when it comes to the accuracy and it is important 
+#to compare this with the random forest. After changing so much my variables to see what would be important and switching 
+#even adding a new data set it is important to see the accuracy and the predictions which shows that logistic model
+#is the better model when it comes to comparing it to random forest when it comes to this question.full_player_data <- full_player_data %>%#l be 1656.
+#model confusion matrix
+```{r}
+confusionMatrix(data = as.factor(full_player_test$prediction_rf),
+                reference = as.factor(full_player_test$million))
+
+
+```
+### code for more complicated random forest visualization
+### needs to be simplified
+
+#y <- cforest(as.factor(million) ~ difH+difAv+difRBI,  data = full_player_data,
+             #control = cforest_unbiased(mtry = 2, ntree = 50))
+ #tr <- party:::prettytree(y@ensemble[[1]], names(y@data@get("input")))
+  #tr_weights <- update_tree(tr)
+#plot(new("BinaryTree", tree=tr, data=y@data, responses=y@responses))
+ 
+ 
+#cf1 <- ctree(million ~ difH+difAv+difRBI+weight,  data = full_player_data,
+        #controls=cforest_control(mtry=2, mincriterion=0))
+
+#plot(rfModel1)
+
+#Here my plot looks super complicated and you can't see much. It is graphs everywhere which makes the random forest plot hard to see but 
+#the code above would show, it also takes along time to run it on your computer.
+
+#Results and Conclusions
+##The random forest prediction for this model shows that is an accuracy of 67.66% which means that the 
+#logistic model is accurate and is better since it has a higher accuracy when we compare both of the models
+#together. Although it does show a different reference and the Kappa the prediction for this model suits better 
+#as a logistic regression model to show if those who will earn a million dollar vs knowing if the general of 
+#their salary will increase but most likely it does to to the false positive, but changing my model  gives me 
+#more of an accurate representation of it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
