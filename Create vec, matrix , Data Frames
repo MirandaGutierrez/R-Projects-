@@ -1,0 +1,148 @@
+## 1.
+### a. Create and store n a vector called myvec a sequence of values from 20 to 40 that has a length of 81.
+myvec=seq(20, 40, length=81)
+myvec
+### b. Create and store a vector called practicevec that contains, in any configuration, the following:
+#### i.   A sequence of integers from 15 to 21 (inclusive)
+#### ii.  The value 6.8 repeated 7 times
+#### iii. The number -21
+#### iiii.A sequence of 9 values starting at 30 and increasing at increments of .3.
+practicevec = c(seq(15,21),rep(6.8, times=7), -21, seq(from=30, length=9, by=3))
+practicevec
+### c. Print the length of practicevec to the console.
+length(practicevec)
+### d. Extract the first and last elements of practicevec, storing them as a new object called endvec.
+endvec= practicevec[c(1, 24)]
+endvec
+### e. Store as a midvec the values returned by omitting the first and last values of practicevec.
+midvec= practicevec[-c(1, 24)]
+midvec
+
+## 2. A student's 5 assignment and two exam scores are c(95, 80, 86, 75, 92, 77, 81) and the weights for these assignments and exams in the total grade are are c(.1, .1, .1, .1, .1, .2, .3).  Use vector-oriented behavior in R to compute the student's overall weighted average.
+scores = c(95, 80, 86, 75, 92, 77, 81)
+weight = c(.1, .1, .1, .1, .1, .2, .3)
+
+average = sum(scores*weight)
+average
+## 3. Construct and store a 4x2 matrix called mymat that is filled row-wise with integers 1 through 8 in order.
+mymat = matrix(data=1:8, nrow=4, ncol=2, byrow=T)
+mymat
+
+## 4. Store the following vector of 20 values as the object x in your workspace: c(9,1,3,6,2,4,7,9,2,5,8,7,4,5,8,1,6,3,2,9)
+x = c(9,1,3,6,2,4,7,9,2,5,8,7,4,5,8,1,6,3,2,9)
+####  a. Identify those elements of x that are equal to 4.  Identify means to both print the elements and print a vector of the indices of the elements that meet the condition.
+xs = c(which(x==4))
+elma = x[x==4]
+print(paste(c("The elements are", elma, "and the indices are", xs), collapse=" "))
+####  b. Identify those elements  of x that are greater than or equal to 7.
+elmb = x[x>=7] #elements
+elmb
+which(x>=7) #indices
+####  c. Identify those elements of x that are less than 4.
+elmc = x[x<4]
+elmc
+which(x<4)
+####  d. Identify those elements of x that are not equal to 2.
+elmd = x[x!=2]
+elmd
+which(x!=2)
+
+
+## 5. 
+### a. Using the same vector x from (4), c(9,1,3,6,2,4,7,9,2,5,8,7,4,5,8,1,6,3,2,9), Identify the elements greater than 6 OR equal to 4.
+which(x>6 | x==4)
+elm5a = x[x>6 | x==4]
+elm5a
+### b. Store the following vector as y and identify the elements less than or equal to 7 and not equal to 3: c(6,5,9,6,3,4,2,8,7,1,5,3,4,6,9,7,8,2,3,1)
+y = c(6,5,9,6,3,4,2,8,7,1,5,3,4,6,9,7,8,2,3,1)
+which(y<=7 & y!=3)
+elm5b = y[y<=7 & y!=3]
+elm5b
+### c. Identify the elements (indices) that satisfy (a) in x and (b) in y.
+which(x>6 | x==4 && y<=7 & y!=3)
+### d. Store a third vector z that is equal to the element-wise sum of x and y.  Determine the elements(indices) of z that are less than or equal to 10 but not equal to 9.
+z = c(x+y)
+which(z<=10 & z!=9)
+
+
+## 6. In a class of 20 students, 13 were CS majors, 4 Engineering, and 3 other. The CS students can be in positions 1-13, the engineers in 14-17, and other in positions 18-20.  The students in positions 1-10, 14-16, and 18 are sophomores.  The students in positions 11-13, 17, and 19 are juniors.  The student in position 20 is a freshman. 
+### a. Create two character vectors, major with entries "CS", "Eng", and "Other", and yr with entries "Fr","So", "Jr", and "Sr", to represent the data described above.
+major = c("CS","CS","CS","CS","CS","CS","CS","CS","CS","CS","CS","CS","CS","Eng","Eng","Eng","Eng","Other","Other","Other")
+yr = c("So","So","So","So","So","So","So","So","So","So","Jr","Jr","Jr","So","So","So","Jr","So","Jr","Fr")
+### b. Create two different factor vectors based on major and yr.  
+majorfac = factor(major)
+yrl = c("Fr", "So", "Jr", "Sr")
+yrfac = factor(x=yr, levels =yrl)
+### c. Make a table showing the frequency of major by year.
+majoryear = data.frame(majorfac, yrfac)
+table(majoryear)
+
+
+## 7. Data frames
+###  a. Create and store this data frame as dframe in your R workspace.  Treat transportation and year as factors and firstname as character.
+#####   firstname   transportation    year
+#####   Joey        walk              2
+#####   Madison     car               4
+#####   Garret      trolley           3
+#####   Ally        walk              3
+#####   Clark       trolley           4
+#####   Lauren      walk              2
+firstname = c("Joey", "Madison", "Garret", "Ally", "Clark", "Lauren")
+transportation = factor(c("walk", "car", "trolley", "walk", "trolley", "walk"))
+year = factor(c("2","4","3","3","4","2"))
+dframe = data.frame(firstname, transportation, year)
+###  b. The number of units these students are taking is given by c(15, 15, 16, 17, 12, 15).  Append this numeric column units to your data frame. 
+units = c(15,15,16,17,12,15)
+dframe$units = units
+dframe
+###  c. Write a single line of code that will extract from dframe just the names and transportation of any 3rd year student.
+dframe[dframe$year==3,c("firstname", "transportation")]
+
+#### 8. If Else
+### Using vec1 and vec2 below, write and execute code that works elementwise and multiplies the two values together if they are not equal to one anther and takes 10*vec1+vec2 if they are equal. Store the result in vec3.
+vec1=c(2,2,4,5,6,7,9,3)
+vec2=c(1,2,3,5,5,7,8,2)
+vec3=c()
+n = length(vec1)
+for(i in 1:n){
+  if(vec1[i]==vec2[i]){
+    vec3[i] = vec1[i]*vec2[i]
+  } 
+  else{
+    vec3[i]= 10*vec1[i]+vec2[i]
+  }
+}
+vec3
+
+### 9. Use nested loops to fill a matrix called matloop with 10 rows and 5 columns so that the value in row i column j is 10*i+j.
+matloop=matrix(nrow=10,ncol=5)
+for(i in 1: 10){
+  for(j in 1:5){
+    matloop[i,j] = 10*i+j
+  }
+}
+matloop
+
+### 10. Write a function called tempconvert that takes degrees Fahrenheit as input and returns degrees Celcius.  Call this function to convert 65 degrees F to Celcius.
+tempconvert = function(fdeg)
+{
+  cdeg=(fdeg-32)*(5/9)
+  return(cdeg)
+}
+tempconvert(65)
+
+### 11. Using the cars data set that is part of the base package in R, make a scatterplot with speed on the x axis and stopping distance on the y-axis.  Label the axes.
+scatx=cars$speed
+scaty=cars$dist
+plot(scatx,scaty,xlab="speed",ylab="distance")
+
+### 12. Using the iris data set that is part of the base package in R, make a scatterplot of Sepal.Length grouped by Species
+### scatterplot code plot(iris$Sepal.Length, ylab="Sepal Length", col=iris$Species)
+### scatterplot code cont'd legend("topleft", legend=c(levels(iris$Species)), bty="n", col=c(1,2,3), lwd=3) 
+boxplot(iris$Sepal.Length~iris$Species, varwidth=T, xlab="Species", ylab="Sepal Length")
+        
+
+
+### 13. Using the state.region data set that is part of the base package in R, make a barplot showing how many states are categorizes as falling into each region.  You'll need to make a table of the data first.
+bartable = table(state.region)
+barplot(bartable, xlab="Region", ylab="No. of States")
