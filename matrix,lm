@@ -1,0 +1,161 @@
+---
+title: ""
+author: ""
+date: " "
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1
+
+Compute the hat matrix for the following vector of predictors, then use the diag command to extract the leverage values.  You can do this using R, but also be sure that you can do these matrix computations by hand for the exam.
+
+```{r}
+x=c(1,1,1,1,1,2,10)
+diag(x)
+```
+
+## Exercise 2
+
+Install and load the faraway package. Get the diabetes data set from faraway. 
+a. Create a new data frame called diabetes2 that contains only the columns chol, age, gender, height, weight, frame, waist, hip, and location.  Keep only rows that have complete cases (no missing data) for this set of variables.  drop_na() from tidyverse, complete.cases, and !is.na are some commands that you could use for this.
+b. Perform exploratory data analysis with the goal being to predict chol using the other variables.  Comment on the relationships you see between variables.
+```{r}
+library(faraway)
+library(tidyverse)
+library(GGally)
+#View(diabetes)
+diabetes2 = diabetes %>%
+  select(chol, age, gender, height, weight, frame, waist, hip, location) %>%
+  drop_na()
+
+#2b
+ggpairs(diabetes2)
+#There is no significant linear relationship between chol and the other variables. The highest correlation is waist and cho at 0.136, which is not strong. Also, with the factor variables "gender", "frame", "location", the box plot does not show a very different mean. Therefore, chol does not have a strong correlation with these factor variables.
+```
+
+## Exercise 3
+
+Using the diabetes2 data frame, create a model colled dia.null that only uses an intercept to predict cholesterol.  Also fit a model called dia.full that contains the four way interaction between age, gender, weight, and frame and all three-way interaction, two-way interactions and main effects for these four variables as well as the three-way interaction of waist, height, and hip with all two-way and main effects for these three variables, and a main effect for location.
+
+```{r}
+dia.null = lm(chol~1, data = diabetes2)
+dia.full = lm(chol~(age*gender*weight*frame) + (waist*height*hip) + location, data = diabetes2)
+```
+
+
+## Exercise 4
+Use forwards stepwise method to select a model for predicting chol in diabetes2 based on partial F-tests starting with dia.null and using the terms in dia.full as your scope.  Use .05 as your criteria for including a term.  Call this model dia.for
+
+```{r}
+#summary(dia.null)
+add1(dia.null,scope=.~.+age+gender+height+weight+frame+waist+hip+location, test="F")
+dia.for = update(dia.null, formula=.~.+age)
+#summary(dia.for)
+add1(dia.for,scope=.~.+gender+height+weight+frame+waist+hip+location, test="F")
+dia.for2 = update(dia.for, formula=.~.+frame)
+add1(dia.for2,scope=.~.+gender+height+weight+waist+hip+location, test="F")
+summary(dia.for2)
+```
+
+
+## Exercise 5
+
+a. Use the AIC step method to select a model starting with dia.null. Call this model dia.aicn
+b. Use the AIC step method to select a model starting with dia.full. Call this model dia.aicf.  Is this the same model as dia.aicn?  Comment 
+c. Use the BIC step method to select a model starting with dia.null. Call this model dia.bicn.  How does this model relate to dia.aicn?
+d. Use the BIC step method to select a model starting with dia.full. Call this model dia.bicf.  Is this the same model as dia.bicn? as dia.aicf?  
+
+```{r}
+dia.aicn = step(dia.null,scope=.~.+age+gender+height+weight+frame+waist+hip+location)
+summary(dia.aicn)
+
+dia.aicf = step(dia.full,scope=.~.+age+gender+height+weight+frame+waist+hip+location)
+summary(dia.aicf)
+#different model than aicf, higher r2
+
+dia.bicn = step(dia.null,scope=.~.+age+gender+height+weight+frame+waist+hip+location, k=log(nrow(diabetes2)))
+summary(dia.bicn)
+#lower r2 than aicn
+
+dia.bicf = step(dia.full,scope=.~.+age+gender+height+weight+frame+waist+hip+location, k=log(nrow(diabetes2)))
+summary(dia.bicf)
+#much higher r2 than bicn but lower than aicf
+```
+
+
+## Exercise 5e
+
+Find the Adjusted $R^2$ value for each of the models in Excercises 4 and 5.  Which is the highest?
+
+```{r}
+summary(dia.for2)$adj.r.squared
+summary(dia.aicn)$adj.r.squared
+summary(dia.aicf)$adj.r.squared
+summary(dia.bicn)$adj.r.squared
+summary(dia.bicf)$adj.r.squared
+#dia.aicf is the highest
+```
+
+## Exercise 6
+
+a. Make a plot of the model dia.for using different lines for each level of frame.  These lines should be parallel since there was no interaction term in this model.
+b. Make a plot of the the model chol~age+frame+age:frame (three lines with different slopes allowed).  Use ggplot and include confidence bands.  Do the lines appear to be parallel?  Do they fall within one another's bands?  Which size frame has cholesterol that is most affected by age?
+
+```{r}
+cholcoefs=coef(dia.for)
+cholcoefs
+ggplot(dia.for,aes(x=age,y=chol,col=frame))+
+  geom_point()+
+  geom_abline(intercept = cholcoefs[1],slope=cholcoefs[2], col="orange")+
+  geom_abline(intercept = cholcoefs[1]+cholcoefs[3],slope=cholcoefs[2], col="turquoise")+geom_point()+geom_abline(intercept = cholcoefs[1]+cholcoefs[4],slope=cholcoefs[2], col="blue")
+
+
+fit = lm(chol ~ age + frame+age:frame, data = diabetes2)
+conf_band_l = data.frame(age = c(19:92), frame = "small")
+conf_band_m = data.frame(age = c(19:92), frame = "medium")
+conf_band_h = data.frame(age = c(19:92), frame = "large")
+conf_band_l = cbind(conf_band_l, predict(fit, conf_band_l, interval = 'confidence'))
+conf_band_m = cbind(conf_band_m, predict(fit, conf_band_m, interval = 'confidence'))
+conf_band_h = cbind(conf_band_h, predict(fit, conf_band_h, interval = 'confidence'))
+
+
+ggplot() +
+    geom_point(data=diabetes2, aes(x = age, y = chol, color = frame)) +
+    geom_ribbon(data=conf_band_l,aes(x = age, ymin=lwr, ymax=upr), alpha=0.3, fill="orange") +
+    geom_ribbon(data=conf_band_m,aes(x = age, ymin=lwr,ymax=upr), alpha=0.3, fill="turquoise") +
+    geom_ribbon(data=conf_band_h,aes(x = age, ymin=lwr,ymax=upr), alpha=0.3, fill="blue") +
+    geom_abline(intercept = coef(fit)[1],slope=coef(fit)[2], col="orange") +
+    geom_abline(intercept = coef(fit)[1]+coef(fit)[3],slope=coef(fit)[2]+coef(fit)[5], col="turquoise")+
+    geom_abline(intercept = coef(fit)[1]+coef(fit)[4],slope=coef(fit)[2]+coef(fit)[6], col="blue")
+```
+
+## Exercise 7
+
+Add a variable called bmi to the diabetes2 data set.  When units are in lbs and inches as they are here, you can use the formula bmi=weight*703/(height^2)
+Conduct an F-test to compare the two models given below.  Give all steps of the hypothesis test.
+
+```{r}
+diabetes2 = mutate(diabetes2, bmi=weight*703/(height^2))
+model1=lm(data=diabetes2, chol~bmi+age+ frame)
+model2=lm(data=diabetes2, chol~bmi*age*frame)
+var.test(model1, model2)
+#1 Ho: The ratio of variances are equal to 1, Ha: The ratio variances are not equal to 1
+#2 We are comparing two variances so we will use an F-test.
+#3 F-statistic = 1.0023
+#4 p-value = 0.9826
+#5 since we have such a high p-value, we fail to reject the null hypothesis
+```
+
+## Exercise 8
+Perform residual diagnostics for model1 of Exercise 7.  Write one sentence for each of the plots indicating what you learn from it.
+```{r}
+plot(model1)
+#resid vs fitted - does not appear to be any pattern (curve or fan)
+#normal QQ - appears to be normal distribution because of linearity
+#scale-location - good fit because no pattern; similar to resid vs fit
+#resid vs leverage - there are no influential points
+```
