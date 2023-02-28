@@ -1,0 +1,205 @@
+---
+title: ""
+author: ""
+date: ""
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# R packages: 
+#  HSAUR3: textbook R package
+#  MASS: for the galaxies data set
+#  KernSmooth: for density estimation and bandwidth selection
+library(HSAUR3) 
+library(MASS)
+library(KernSmooth)
+library(ggplot2)
+library(boot)
+library(fANCOVA)
+```
+
+## Exercise 1
+
+The `galaxies` data set in the MASS package presents the velocities of 82 galaxies from size well-separated conic sections of space (Postman et al., 1986; Roeder, 1990).  The data are intended to shed light on whether or not the observable universe contains superclusters of galaxies surrounded by large voids.  The evidence for the existence of superclusters would be the multimodality of the distribution of velocities.  We will use kernel density estimations to smooth histogram visualizations of the velocities distribution.  The questions of interest is: What may we conclude about the possible existence of superclusters of galaxies?
+
+a.  Present summary statistics of the galaxy velocities: min, max, mean, median, interquartile range, standard deviation.
+
+b. Construct histograms of the distribution of velocities using both base and ggplot (galaxies is a vector - you'll need to make it a data frame to use ggplot).  Make sure to label the graphs.  Comment on how the spread, center, and modes of the distribution compare in the two histograms.  Play around with different numbers of bins and choose a value that you think gives the best visual representation distribution of galaxies.
+
+c. Present, on the same set of axes using the base package, the histogram of velocities and three kernel density estimates (gaussian, rectangular, and triangular). Label the axes, use the default bandwidth of "nrd0" for all, use a different line color for each density estimate, and include a legend on the plot.  You can plot the densities by storing the results of the call to density and then using the lines command to plot them over the histogram.  Remember to use freq=F when plotting the histogram so that the y-axis will line up for the density plots and use the number of breaks you decided would be good from part b.  Add a rug plot to the bottom of the graph using the command rug(jitter(galaxies)) to show the locations of the observed values.
+
+d. Instead of comparing kernels using the same bandwidth, now fix the kernel at Gaussian and plot (on the same set of axes over the histogram) the densities using five different bandwidth methods.  You can find them listed by searching bw.nrd0 in the help menu.  This time use ggplot commands geom_histogram, geom_density, and geom_rug.  Recall that adding the aesthetic y = ..density.. will put the histogram on the same scale as the densities.  In geom_rug, you'll need to set the x aesthetic to galaxies, the y aesthetic to 0, and also set position = position_jitter(height = 0).  4 points of extra credit if you add a legend to this plot.  Comment on which bandwidths seem widest and narrowest.  
+
+```{r}
+View(galaxies)
+#a
+summary(galaxies)
+quantile(galaxies,probs = c(0.25,0.75))
+sd(galaxies)
+#min 9172, max 34279, mean 20828, median 20834, interquartile range 19532 23133, sd 4563.758
+
+#b
+galaxies <- as.data.frame(galaxies)
+names(galaxies) <- 'Velocity'
+
+ggplot(galaxies, aes(x=Velocity))+geom_histogram()
+
+hist(galaxies$Velocity,xlab="Velocity",ylab="Frequency", main="Histogram of Galaxies Dataset (Velocity)")
+
+#the histogram of ggplot is more spread and center is near 2000. The ggplot mode is more accurate than basic histogram
+
+hist(galaxies$Velocity, breaks = 10, xlab="Velocity",ylab="Frequency", main="Histogram of Galaxies Dataset (Velocity)")
+hist(galaxies$Velocity, breaks = 20, xlab="Velocity",ylab="Frequency", main="Histogram of Galaxies Dataset (Velocity)")
+
+#c
+hist(galaxies$Velocity, breaks = 20, plot = T, freq = F,  xlab="Velocity", main="Histogram of Galaxies Dataset (Velocity)")
+gdens=density(galaxies$Velocity, kernel = "gaussian")
+rdens=density(galaxies$Velocity, kernel = "rectangular")
+tdens=density(galaxies$Velocity, kernel = "triangular")
+lines(gdens,col=2)
+lines(rdens,col=4)
+lines(tdens,col=6)
+rug(jitter(galaxies$Velocity))
+
+#d
+ggplot(data=galaxies, mapping=aes(x=Velocity, y=..density..))+ geom_histogram()+geom_density(bw="nrd0")+geom_rug(data=galaxies, aes(x=Velocity, y=0), position=position_jitter(height = 0))
+
+
+ggplot(data=galaxies, mapping=aes(x=Velocity, y=..density..))+ geom_histogram()+geom_density(bw="nrd")+geom_rug(data=galaxies, aes(x=Velocity, y=0), position=position_jitter(height = 0))
+
+
+ggplot(data=galaxies, mapping=aes(x=Velocity, y=..density..))+ geom_histogram()+geom_density(bw="ucv")+geom_rug(data=galaxies, aes(x=Velocity, y=0), position=position_jitter(height = 0))
+
+ggplot(data=galaxies, mapping=aes(x=Velocity, y=..density..))+ geom_histogram()+geom_density(bw="bcv")+geom_rug(data=galaxies, aes(x=Velocity, y=0), position=position_jitter(height = 0))
+
+ggplot(data=galaxies, mapping=aes(x=Velocity, y=..density..))+ geom_histogram()+geom_density(bw="SJ")+geom_rug(data=galaxies, aes(x=Velocity, y=0), position=position_jitter(height = 0))
+
+# bcv bandwidths seems widest and ucv bandwidths seems narrowest
+
+
+
+
+
+
+```
+
+## Exercise 2
+
+Thusfar, we've looked at the effect of different bandwidths, but not quantified what makes a bandwidth (or span) optimal.  In this exercise, we'll use a function from the fANCOVA package to minimize AIC or SSE via cross-validation.
+The data set is EuStockMarkets from the base package and we'll use date to predict close (column 4).
+
+a. View the EuStockMarkets data set.  Date is given in the data frame, but it will be easier for us to work with an index of dates. Create a new two-column data frame called stock with the first column called index that just gives the row number and the second being the close column from EUStockMarkets.  The data set is a bit large for plotting nicely and observing the curves, so for this exercise we'll just work with the first 200 rows.
+b. Fit loess curves to predict close with index using spans of .1,.5, and .8 in the loess function. Store these model objects as loess10, loess50, and loess80.  Then use the predict function to find the predicted values with the curve.  Make a line plot with index on the horizontal axis and close on the y (connect the points).  Add in the three prediction lines in different colors.
+c. Use the loess.as function from fANCOVA package to find an optimal span.  You'll need to send in an x, a y, and criterion="aic".  Use predict to make predictions with this model and add to the plot in a different color.  Use the summary command to find what span was chosen.  Is it lower or higher than you expected?
+d. Repeat part c using the cross-validation optimization method (criterion="gcv").  How does this span compare to the AIC span?
+
+```{r}
+
+#a
+View(EuStockMarkets)
+class(EuStockMarkets)
+stock = data.frame(EuStockMarkets)
+View(stock)
+stock$index = 1:nrow(stock)
+stock = stock[,4:5]
+stock = stock[1:200,]
+
+#b
+loess10 = loess(FTSE~index, data = stock, span =0.10)
+loess50 = loess(FTSE~index, data = stock, span =0.50)
+loess80 = loess(FTSE~index, data = stock, span =0.80)
+
+## Plot the different local estimates
+plot(stock$FTSE, x=stock$index, type="l", main="Loess Smoothing and Prediction", xlab="index", ylab="FTSE")
+lines(x = stock$index, loess10$fitted, col = "red")
+lines(x = stock$index, loess50$fitted, col = "green")
+lines(x = stock$index, loess80$fitted, col = "blue")
+
+#c
+loesbas = loess.as(stock$index, stock$FTSE, criterion = "aic")
+summary(loesbas)
+#Since we shrunk the amount of iteration the span is right where I expected it to be. Although I thought it would be a little higher
+
+#d
+loesbas1 = loess.as(stock$index, stock$FTSE, criterion = "gcv")
+summary(loesbas1)
+#The span is about the same which is not that suprising with our sample size.```
+
+
+
+```
+
+
+## Exercise 3
+
+In this exercise, you'll revisit the mouse data from lecture and find a bootstrap confidence interval for the difference in mean survival (call this difference theta).  First you'll do the bootstrap resampling "by hand" and then compare with results from the boot function.
+
+a. Randomly sample with replacement the treatment group and the control group separately. Repeat for $B = 1000$ resamples of size 16 of which 7 are resampled from the treatment observations and 9 are resampled from the control observations. Compute an estimate of $\theta$ for each bootstrap sample. The data and some starter code are given in the chunk below.
+b. Compute an overall bootstrap estimate of $\theta$ and bootstrap standard error.  (If you follow the code suggestions in the chunk, this will simply be the mean of `thb` and standard deviation of `thb`). Compute a 95% bootstrap confidence interval for $\theta$ also using your tbh values.  
+c. Plot a histogram or density curve of the estimated $\theta$ values over the bootstrap resamples. Show the observed $\hat{\theta}$ using a vertical line (abline(v=)) on the graphic and plot the endpoints of the confidence interval using dashed vertical lines  (lty=2) on the same plot.  
+d. Compute the proportion of bootstrap $\theta$ values less than zero.  What does this proportion represent?  
+e. Use the boot function to construct the same confidence interval.  You should recycle the meandiff function used in lecture to use as the statistic in the call to boot.  You'll need to concatenate trt and ctrl into one vector for the data to send to boot.  You should use strata in your call.  This can be 7 1's followed by 9 2's.  boot.ci can then be used to get the confidence interval after storing the call to boot.
+
+
+
+```{r trt_ctrl_resampling}  
+## mouse data
+trt = c(94, 197, 16, 38, 99, 141, 23) # treated mice
+ctrl = c(52, 104, 146, 10, 50, 31, 40, 27, 46)
+
+#To resample the data for the confidence interval obtain random samples with replacement of the integers 1:7 and 1:9 separately. For example, the following code chunk resamples once the treatment group observations, variable trt, and control group observations, variable ctrl.
+
+# resample the treated mice
+ut = sample(1:7, size=7, replace=TRUE)
+trtb = trt[ut]
+# resample the control mice
+uc = sample(1:9, size=9, replace=TRUE)
+ctrlb = ctrl[uc]
+# mean difference in survival time between treated and control
+thb = mean(trtb) - mean(ctrlb)
+
+# You should wrap this in a for-loop with `thb` (theta bootstrap) stored each time.
+
+B <- 1000
+theta.b <- numeric(B)
+for (i in 1:B) {
+  ut.b = sample(1:7, size=7, replace=TRUE)
+  trtb.b = trt[ut.b]
+  uc.b = sample(1:9, size=9, replace=TRUE)
+  ctrlb.b = ctrl[uc.b]
+  theta.b[i] = mean(trtb.b) - mean(ctrlb.b)
+}
+## b
+mean(theta.b)
+sd(theta.b)
+CI <- quantile(theta.b,probs = c(0.025,0.975))
+CI
+
+## c
+hist(theta.b)
+abline(v=thb)
+abline(v=CI[1],lty=2)
+abline(v=CI[2],lty=2)
+
+## d
+sum(theta.b<0)/B
+# The proportion of bootstrap $\theta$ values less than zero is 11.8%. The p value of this test is 0.118.
+
+## e
+nt <- length(trt)
+nc <- length(ctrl)
+meandiff <- function(x, i, nt, nc){
+  mouseb = x[i]; trtb = mouseb[1:nt]; ctrlb = mouseb[(nt+1):(nt+nc)];
+  thb = mean(trtb) - mean(ctrlb) 
+  return(thb) 
+} 
+mouse.boot <- boot(c(trt,ctrl), meandiff, R = 1000,nt=nt,nc=nc,strata=c(rep(1,7),rep(2,9)))
+boot.ci(mouse.boot, conf = c(0.95))
+
+```
+
+
+
+
+
