@@ -1,0 +1,117 @@
+---
+title: "STAT"
+author: ""
+date: 
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Some exercises from "Introduction to Data Science" by Irizarry
+
+## 1
+
+Load the dplyr package and the dslabs package. Access the murders dataset from dslabs. You'll see it contains variables state, abb, region, populations, and total. 
+
+* Use the function mutate to add a murders column named rate with the per 100,000 murder rate.  Use assignment so that this new column remains accessible in the murders data frame.
+* rank(x) gives you the ranks of x from lowest to highest, and rank(-x) gives you the ranks from highest to lowest.  Use the function mutate to add a column rank containing the rank from highest to lowest murder rate. Use assignment so that this new column remains accessible in the murders data frame.
+
+```{r exercise1}
+library(dplyr)
+library(dslabs)
+
+data(murders)
+
+murders = mutate(murders, rate=total/population*100000)
+murders = mutate(murders, rank=rank(-rate))
+murders
+```
+
+## 2
+Use filter to show the top 5 states with the highest murder rates.  Use select so that only state, rate, and rank are printed.
+
+
+
+```{r exercise2}
+murders = mutate(murders, rate=total/population*100000, rank=rank(-rate))
+topFive = filter(murders,rank <=5)
+select(topFive,state,rate,rank)
+```
+
+## 3
+We can use %in% to filter with dplyr. 
+
+* Create a new data frame called murders_nw with only the states from the Northeast and the West.  
+* How many state are in this category? (use code to answer)
+* Use filter and select to create a data frame called my_states of states in these regions with murder rates less than 1.  Include columns state, rate, and rank. 
+* Use arrange to print mystates in descending order of rank.
+```{r, exercise3}
+## Part 1:
+murders_nw = filter(murders, region %in% c("Northeast", "West"))
+View(murders_nw)
+print(paste("Number of States: ",nrow(murders_nw)))
+
+## Part 2:
+my_states = filter(murders_nw, rate < 1)
+select(my_states,state,rate,rank)
+
+## Part 3:
+arrange(my_states, desc(rank))
+
+```
+
+## 4
+Use group_by and summarise to find the average and standard deviation of murder rates by region
+```{r, exercise4}
+murders %>% group_by(region) %>% summarize(average = mean(rate), standard_deviation = sd(rate))
+
+```
+
+
+## 5
+Load ggplot2 and ggrepel. Use ggplot2 to make a scatterplot of population and total for the murders data set. 
+
+* Transform both population and murders total to log scale and replot.
+* Add a title (US Gun Murders 2010) and axis labels
+* Add the state abbreviations as labels using the repel package
+* Color code the points by region
+
+```{r, exercise5}
+library(ggplot2)
+library(ggrepel)
+
+murders %>% ggplot() +
+  geom_point(aes(x = population/10^6, y = total, col = region)) + 
+  geom_text_repel(aes(x = population/10^6, y = total, label = abb), nudge_x = 0.03) +
+  scale_x_continuous(trans = "log10") + 
+  scale_y_continuous(trans = "log10") + 
+  xlab("Population in millions (log scale)") +
+  ylab("Total number of murders (log scale)") + 
+  ggtitle("US Gun Murders 2010")
+
+
+```
+
+## 6
+Load the GGally package.  Use ggpairs to make a correlation matrix plot for the variables in the swiss data set from the R base package.
+
+* Use mutate to create a new column MajorityCatholic that is 0 when Catholic is less than 50 and 1 when Catholic is more than 50.  Store this in a new data frame, swiss1.
+* Replot the correlation matrix for the same variables using MajorityCatholic to color the points.
+```{r, exercise6 }
+library(GGally)
+data(swiss)
+
+ggpairs(swiss)
+
+swiss1 = mutate(swiss, MajorityCatholic = 1 * (Catholic > 50))
+head(swiss1)
+
+swiss1$MajorityCatholic = as.factor(swiss1$MajorityCatholic)
+
+ggpairs(swiss1, aes(color = MajorityCatholic))
+
+```
+
