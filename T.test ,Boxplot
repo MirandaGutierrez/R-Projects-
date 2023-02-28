@@ -1,0 +1,178 @@
+title: ""
+author: ""
+date: "2/14/22"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1
+In this exercise, you'll simulate samples of data from a normal distribution and show empirically that the t test statistic follows a t distribution.
+
+* Use a set.seed command to set the random seed to 410
+* Create a matrix of data called mysamples that has 10 rows and and 500 columns.  Fill this matrix with random draws from a normal distribution with mean 50 and standard deviation 2. 
+
+```{r Ex1ab}
+set.seed(410)
+#rnorm(410)
+
+#mysamples <- matrix(data =1:5000, nrow = 10 , ncol = 5000)
+#mysamples
+      
+#rnorm(mysamples , mean = 50 , sd = 2)
+
+mysamples=matrix(rnorm(5000, mean=50, sd=2), nrow=10, ncol=500)
+```
+
+* Use the apply command to create a vector called means that computes the sample average for each column.  Also use apply to create a vector called sds that finds the sample standard deviation for each column. These vectors should each have a length of 500.
+* Compute the t-test statistic for each sample by taking (xbar-50)/(s/sqrt(10)) and store these in a vector called tstat
+```{r Ex1cd}
+# us the apply command to create the vector
+
+means = apply(mysamples, 2, mean)
+
+length(means)
+
+sds = apply(mysamples, 2, sd)
+
+length(sds)
+
+tstat = pt((means-50)/(sds/sqrt(10)), 499)
+```
+* Use the curve command with the dt command to plot the theoretical sampling distribution of the t-statistics you computed. 
+* Use the curve command with the dnorm command and the add argumant to plot a standard normal curve in a different color on the same plot.
+* Add in the density curve for your sample data in a different color (use lines).  Comment on how well the curves match or do not match. Is the simulated data closer to normal or t?
+```{r Ex1e}
+curve(dt(x, 499), from = -3, to = 3)
+curve(dnorm(x), from=-3,to=3,ylab="", add=T, col=2)
+plot(density(tstat), add = T, col=3)#the standard normal curve appears to be more normalthan the density plot that is shown from t.
+
+```
+
+## Exercise 2
+A [2020 study](https://med.stanford.edu/news/all-news/2020/01/human-body-temperature-has-decreased-in-united-states.html) from Standford University examines the downward trend in human body temperature.
+
+A dataset called JSETemp is provided on the learning management system.  These temperatures were taken from a random sample of Americans in 1992.  The gender column is coded as 1 for male and 2 for female.
+
+* Import the csv file as a dataframe called temp.
+* Perform exploratory data analysis to determine if the distribution of temperature is approximately normal.  We've covered a variety of ways to do this.  Choose two and comment on the results.
+
+```{r Ex2ab}
+library(dslabs)
+library(ggplot2)
+library(dplyr)
+
+temp = read_csv("~/Desktop/STAT 410 Spring 2022/JSETemp.csv")
+View(temp)
+
+ggplot(temp, aes(y=Temp,group=Gender,color=Gender))+
+  geom_boxplot()
+
+ggplot(temp, aes(sample=Temp,group=Gender,color=Gender))+
+  geom_qq()+
+  geom_qq_line()
+
+
+#temp %>%
+#  ggplot(aes(x = gender() y)) + 
+ # geom_boxplot(color = 'black', fill = 'firebrick') +
+ # labs(x = "Gender", y = "IQ")
+# I was playing around with diffrent forms and decided to show both of the gender in group and the second one shows the normal distribution
+#how it shows as a box plot.
+
+```
+
+
+* Conduct a t-test to determine if mean temperature is statistically significantly lower than 98.6 at the 5% significance level.  Include all five steps of a hypothesis test.  Put descriptions/comments in the .Rmd document below the code.
+* Compute a 90% confidence interval for the mean temperature.
+```{r Ex2cd}
+#H0>98.6 ha>98.6
+
+t.test(temp, mu=98.6, conf.level = 0.90, alternative = "two.sided ")
+# I am second guessing myself so i put both,
+tval=t.test(temp,mu=98.6, conf.level=0.9, alternative = "less")
+tval
+int=qt(0.95,129)*sd(temp$Temp)/sqrt(130)
+
+#the mean temp at confidence interval 90%
+
+lbound=tempmean-int
+lbound
+ubound=tempmean+int
+ubound
+print(paste(lbound,ubound,sep=" "))
+
+```
+
+
+
+## Exercise 3
+* Use dplyr commands to add a column to your temp data frame that recodes Gender as a factor variable called Sex to read "M" and "F" instead of "1" and "2"
+* Conduct a t-test to determine if mean temperature for women is statistically significantly higher than mean temperature for men at the 5% level.  Include all five steps of a hypothesis test.  Since our data are in a data frame, the formula version of entering data for t.test should be easier.
+
+```{r Ex3ab}
+library(dplyr)
+View(temp)
+#temp_["Added_Column"] <-  ("M,F")
+#the p val is at 0.9889it wont be significantly bigger ,temps in women is bigger 
+#m to 1
+#f to 2
+temp2=mutate(temp,Sex=factor(if_else(Gender==1, "M", "F")))
+temp2
+mean(temp2[temp2$Sex=="F",]$Temp)
+mean(temp2[temp2$Sex=="M",]$Temp)
+t.test(temp2[temp2$Sex=="M",]$Temp, temp2[temp2$Sex=="F",]$Temp, alternative="greater")
+```
+
+
+* Use ggplot to make side by side boxplots of temperature for male and female.
+* Use ggplot to make density plots of temperature for men and women on the same plot.
+```{r Ex3cd }
+library(ggplot2)
+library(dplyr)
+#ggplot(temp, aes(x=as.factor(male),  y=women)) + 
+  #  geom_boxplot (fill =" slateblue" ,  alpha=0.5) + 
+  #  xlab(“male)
+
+
+ggplot(temp2, aes(y=Temp,group=Sex,color=Sex))+
+  geom_boxplot()
+ggplot(temp2, aes(x=Temp,group=Sex,color=Sex))+
+  geom_density()
+
+```
+
+## Exercise 4
+
+A randomized clinical trial called the PATRICIA study looked at the efficacy of the HPV vaccine for preventing HPV16 infection.  Of 6018 patients in the control group, 345 developed an infection. Of the 6163 patients in the vaccine group, 23 developed an infection.  
+
+* Conduct a test at the 5% level to determine if the vaccine is effective in reducing infection. Be sure to include all five steps of the hypothesis test.  Give a 95% confidence interval for the difference in proportions.
+```{r Ex4a}
+
+#alpha = 0.95
+#degrees.freedom = sample.n - 1
+#t.score = qt(p=alpha/2, df=degrees.freedom,lower.tail=F)
+#print(t.score)
+
+prop.test(x=c(345,23), n=c(6018,6163), alternative="two.sided")
+
+```
+
+
+* Two R functions that were not covered in lecture, but are useful for reporting on binary data in groups are riskratio and oddsratio (both in the epitools package).  Look these functions up in the help menu and apply them to the PATRICIA data - use the matrix format of the data given below as the function input.  Give 95% CIs for the risk ratio and the odds ratio along with an interpretation of each.
+```{r Ex4b}
+library(epitools)
+mymat=matrix(data=c(6140,5673,23,345), nrow=2)
+colnames(mymat)=c("No Infection", "Infection")
+rownames(mymat)=c("Vaccine","Control")
+riskratio(mymat)
+oddsration(mymat)
+#those who decided to take the risk and not get vaccinated are at the high risk because they are exposed more.
+#95% gives its  risk ration and with it goes along the interpertation of the ration which is odds ration from my mat.
+#it is likely that it will be 16 times those to get the virus from those who choose to get the vax.
+```
