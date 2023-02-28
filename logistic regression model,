@@ -1,0 +1,172 @@
+---
+title: ""
+author: ""
+date: ""
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(caret)
+library(pROC)
+library(ResourceSelection)
+```
+
+## Exercise 1
+
+For the logistic regression model with a single numeric predictor, show that \[E[Y]=[1+exp(-\beta_0-\beta_1 X)]^{-1}\]
+
+
+## Excercise 2
+
+We'll use the kickstarter project data for the remainder of this lab.  We'll start with exploratory data analysis in exercise 2.
+a. Read in the ksprojects.csv file and store it as a data frame called ks.  Add a column that will be our response variable for logistic regression.  success should be set to 1 or TRUE if the state is "successful" and 0 or FALSE otherwise.  Filter the data set to only include rows where currency is one of the following ("AUD", "CAD", "EUR", "GBP", "MXN", and "USD").  Drop unused levels after filtering.
+b. Use the partitioning command from the caret package to divide ks into a training data set called kstr and a test set called kstest.  Set your seed to 410 and put 20% of the data in the test set. 
+b. Use the ntile function in dplyr to add a column called quantile to kstr that gives the quantile of goal when we divide it into 50 groups (this is a large data set, so we can do many groups).  Group kstr by quantile.  
+c. Store summary information from the quantiles in the object kssum.  The summary values should be mean goal, mean of log base 10 goal, and proportion of success.  You should have 50 values of each of these, one for each quantile.
+d. Plot mean goal versus proportion of success and mean of log goal verus proportion of success.  Comment on which will be most appropriate to use in logistic regression.
+
+
+```{r}
+#a
+ks=read.csv("ksprojects.csv")
+#view(ks)
+ks=ks%>%mutate(y=as.numeric(state=="successful"))%>%filter(currency==c("AUD","CAD","EUR","GBD","MXN","USD"))
+ks=droplevels(ks)
+view(ks)
+
+#b
+set.seed(410)
+training.samples=ks$y%>%createDataPartition(p=.8, list=F)
+training.samples
+kstr=ks[training.samples,]
+kstest=ks[-training.samples, ]
+#ks.Sec=glm(data=ks, currency~Sector, family="binomial")
+#summary(dis.Sec)
+#view(kstr)
+kstr=mutate(kstr, quantile=ntile(goal,50))%>%group_by(quantile)
+#c
+kssum=summarise(kstr,meang=mean(goal),logg=mean(log10(goal)), props=mean(y))
+kssum
+#d
+plot(kssum$meang~kssum$props)
+plot(kssum$logg~kssum$props)
+
+```
+
+## Excercise 3
+
+a. Fit a logistic regression model called ks.goal using either log_10 goal or goal to predict success with the kstr data.  Write a sentence interpreting the coefficient of your predictor. Use ggplot to plot the logistic regression curve.
+b. Add phat columns to kstr and kstest with the predicted probability of success using ks.goal as the model.  You may need to ungroup your kstr data before adding the new column.
+c. Use the kstr data to determine the best cut-off value of phat for predicting success=1
+d. Report the accuracy rate of the classification on the training data and test data and compare to the classifier that would guess unsuccessful for all projects.
+```{r}
+#a
+ks.goal=glm(y~log10(goal), data=kstr, family="binomial")
+summary(ks.goal)
+#if goal increases by 1, the probability decreases by exp(-0.6767)
+ggplot(kstr,aes(x=log10(goal), y=y))+geom_smooth(method = "glm", method.args= list(family = "binomial"))+labs(title = "Logistic Regression Model",x = "Log Goal",y = "Response")
+
+#b
+kstr=ungroup(kstr)
+kstr=mutate(kstr, phat=predict(ks.goal,kstr, type="response"))
+kstest<-mutate(kstest, phat=predict(ks.goal, kstest, type="response"))
+
+#c
+cutgrid=seq(.25, .9, by=.01)
+yhatmat=matrix(nrow=nrow(kstr), ncol=length(cutgrid))
+rate=vector()
+for(i in 1:length(cutgrid)){
+  yhatmat[,i]=kstr$phat>cutgrid[i] 
+  rate[i]=mean(yhatmat[,i]==kstr$y)
+}
+cbind(cutgrid,rate)
+#the cutoff is .46 with 0.645
+#d
+kstr=kstr%>%mutate(phat=ks.goal$fitted.values, yhat=phat>.5)
+mean(kstr$yhat==kstr$y)
+#accuracy =.654
+kstest=mutate(kstest, yhat=phat>.5)
+mean(kstest$yhat==kstest$y)
+#accuracy .649 
+
+```
+
+## Exercise 4
+a. Will main_category and currency be useful for predicting success?  Conduct some exploratory data analysis using the kstr data frame and comment on your output.
+b. Fit a model called ks.cat that uses only category as a predictor variable.
+c. What is the predicted probability of success for a dance project using the logistic regression model?  How does that compare to the proportion successful in the kstr sample.
+```{r}
+#a
+ggplot(data = kstr) + geom_bar(mapping = aes(x = main_category, colour = currency)) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+mosaicplot(data = kstr, ~main_category + currency, color = T, las = 2)
+
+#b
+ks.cat=glm(y~category, data=kstr, family="binomial")
+summary(ks.cat)
+#c
+ks.cat = ks.cat %>% mutate(phat=ks.goal$fitted.values, yhat=phat>.5)
+mean(ks.cat$yhat==ks.cat$y)
+#accuracy of .658
+kstest=mutate(kstest, yhat=phat>.5)
+mean(kstest$yhat==kstest$y)
+
+```
+
+
+## Exercise 5
+a. Use stepwise model selection on the kstr data to choose a model for success.  The largest scope of your model should be \[log10goal*main_category*currency\]. 
+b. Find the optimal cut-off for phat using your ks.step model and assess the accuracy of this on the kstest data.
+
+```{r}
+#a
+ks.full=glm(y~log10(goal)*main_category*currency, data=kstr)
+ks.step=step(ks.full)
+summary(ks.step)
+#b
+kstr1=kstr%>%ungroup%>%mutate(phat=ks.step$fitted.values)
+plot(ks.step$fitted.values, kstr1$y)
+
+cutgrid=seq(.25, .9, by=.01)
+yhatmat=matrix(nrow=nrow(kstr1), ncol=length(cutgrid))
+rate=vector()
+for(i in 1:length(cutgrid)){
+  yhatmat[,i]=kstr1$phat>cutgrid[i] 
+  rate[i]=mean(yhatmat[,i]==kstr1$y)
+}
+cbind(cutgrid,rate)
+#cutoff is .51 with 0.645
+kstest=mutate(kstest, yhat=phat>.52)
+mean(kstest$yhat==kstest$y)
+#The accuracy is .645 
+
+
+
+
+
+
+```
+
+
+## Exercise 6
+a. Conduct a Hosmer-Lemeshow goodness of fit test for your ks.step model on the training data using g=10.  Write a sentence explaining the conclusion of the test.
+b. Plot the ROC curve and compute the area under the ROC curve.  What does this say about the quality of the model?
+
+```{r}
+#a
+hl=hoslem.test(kstr1$y, fitted(ks.step), g=10)
+hl
+cbind(hl$expected, hl$observed)
+#has a high p-value of .4, we fail to reject null therefore there's no evidence of lack of fit.
+#b
+roccurve=roc(kstr1$y~kstr1$phat)
+plot(roccurve)
+auc(roccurve)
+#area is 0.679
+
+
+
+```
