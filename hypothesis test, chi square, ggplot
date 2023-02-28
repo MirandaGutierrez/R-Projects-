@@ -1,0 +1,119 @@
+The data set HairEyeColor gives hair and eye color reported by students at the University of Delaware in the 1970s. The data is set up in a three-dimensional array with hair color being the first dimension, eye color the second, and sex being the third (or panel) variable.
+
+Aggregate the data for both genders into a single matrix called HairEye. You can do this using the apply function with sum as the function and both the first and second dimensions as the margin (MARGIN=c(1,2)).
+Determine if all the expected cell counts are at least 5 for the aggregated matrix HairEye. You only need to do this for the smallest expected cell count, so you can find the smallest row total and smallest column total and compute expected count for the corresponding cell. *Conduct a test to determine if hair and eye colors are associated. Include all five steps of the hypothesis test.
+head(HairEyeColor)
+## , , Sex = Male
+## 
+##        Eye
+## Hair    Brown Blue Hazel Green
+##   Black    32   11    10     3
+##   Brown    53   50    25    15
+##   Red      10   10     7     7
+##   Blond     3   30     5     8
+## 
+## , , Sex = Female
+## 
+##        Eye
+## Hair    Brown Blue Hazel Green
+##   Black    36    9     5     2
+##   Brown    66   34    29    14
+##   Red      16    7     7     7
+##   Blond     4   64     5     8
+#Part A,
+haireye = apply(HairEyeColor, MARGIN=c(1,2), sum)
+#Part B,
+min(apply(haireye, 1,sum))*min(apply(haireye,2,sum))/sum(haireye)
+## [1] 7.675676
+#Part C,
+chisq.test(haireye)
+## 
+##  Pearson's Chi-squared test
+## 
+## data:  haireye
+## X-squared = 138.29, df = 9, p-value < 2.2e-16
+Hypothesis test: the null hypothesis is H0: hair and eye color are not associate(independent). HA: hair and eye color are associated
+
+Test/Assumptions: The Chi-square test of independence checks whether two variables are likely to be related or not. We have counts for two categorical or nominal variables. We also have an idea that the two variables are not related. The test gives us a way to decide if our idea is plausible or not. We can see that the expected counts are at least 5 which meet our assumptions and we can use the chi-squared test.
+
+Results: X-squared = 138.29 p-value < 2.2e-16
+
+Conclusion: Since our p-value is 2.2e-16 we would reject our null hypothesis and we would have sufficient enough evidence to conclude that hair and eye color are associated.
+
+Exercise 2
+The dataset foster in HSAUR3 gives genotypes for rat mothers and their litters.
+
+Create a matrix called geno that gives counts of genotype for mother and litter in a two-way table
+Conduct a test to determine if mother’s genotype and litter’s genotype are associated. Include all five steps of the hypothesis test (you might not have a value for step 3).
+library("HSAUR3")
+## Loading required package: tools
+litgentable = table(foster$litgen)
+motgentable = table(foster$motgen)
+geno = as.matrix((cbind(litgentable, motgentable)))
+
+min(apply(geno, 1,sum))*min(apply(geno,2,sum))/sum(geno)
+## [1] 14.5
+chisq.test(geno)
+## 
+##  Pearson's Chi-squared test
+## 
+## data:  geno
+## X-squared = 0.19812, df = 3, p-value = 0.9779
+Hypothesis Test: HO: mother”s genotype and litter’s genotype are independent HA: mother genotype and litter’s genotype are associated
+
+Assumptions/Test: The Chi-square test of independence checks whether two variables are likely to be related or not. We have counts for two categorical or nominal variables. We also have an idea that the two variables are not related. The test gives us a way to decide if our idea is plausible or not. We can see that the expected counts are at least 5 which meet our assumptions and we can use the chi-squared test.
+
+Results: X-squared = 0.19812 p-value = 0.9779
+
+Conclusion: Since we our p-value is 0.9779 we would fail to reject the null and would have sufficient enough evidence to conclude that mothers genotype and litters genotype are independent.
+
+Exercise 3
+A mosaic plot is a way to visualize the joint distribution of two categoriacal variables. We can get mosaic plots in both the base and ggplot2 packages.
+
+Use the mosaicplot command to make a mosaic plot of your HairEye matrix from exercise 1. Just send in the matrix and leave all other arguments at their default value.
+Use the mosaicplot command to make another mosaic plot of HairEye. This time use the color argument with the vector c(“burlywood4”, “royalblue”,“darkseagreen4”, “forestgreen” ). To see a listing of different color names in R (if you want to use something different), use the command colors().
+Use the mosaicplot command to make a third mosaic plot of HairEye. Do not use the color argument, but set shade=T.
+Write a few sentences explaining what the shade argument does and which mosaic plot you think is most useful and why.
+#1
+mosaicplot(haireye)
+
+
+#2
+mosaicplot(haireye, color = c("burlywood4", "royalblue","darkseagreen4", "forestgreen" ))
+
+
+#3
+mosaicplot(haireye, shade=T)
+ The shade function is a logical indicating whether to produce extended mosaic plots, or a numeric vector of at most 5 distinct positive numbers giving the absolute values of the cut points for the residuals. By default, shade is FALSE, and simple mosaics are created. Using shade = TRUE cuts absolute values at 2 and 4. Personally I believe the mosaic plot with the colors is most useful because you can see the difference between hair and eye color.
+
+Exercise 4
+To make a mosaic plot in ggplot2, you’ll need to install the ggmosaic package. Recall that ggplot commands require a data frame to begin, so if your data is already arranged in a table like HairEye, you’ll need to reformat it. We’ll work with foster in this exercise to avoid reformatting. R does not have a built in function for reformatting, but there are plenty out there - countsToCases is one you can search.
+
+Install the ggmosaic package. Load ggplot2 and ggmosaic
+Use a ggplot command with a geom_mosaic geometry to make a mosaic plot of the foster data. Inside the geometry should be aes(x=product(litgen, motgen), fill=litgen)
+add a labs line to label the x axis “Mother”, the y axis “Litter” and the title “Rat Genotype”
+library(ggplot2)
+library(ggmosaic)
+ggplot(data = foster)+
+geom_mosaic(aes(x=product(litgen, motgen), fill=litgen)) + 
+  labs(y="Litter", x="Mother", title='Rat Genotype')
+
+
+Exercise 5
+A medical journal reported the data below on frequencies of cardiac deaths by day of the week. Conduct a test at the .05 level of the null hypothesis that deaths are evenly distributed over the days of the week. Complete all five steps of the hypothesis test.
+
+cardiacdeaths=c(40, 17, 16, 29, 15, 20, 17)
+names(cardiacdeaths)=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+chisq.test(cardiacdeaths)
+## 
+##  Chi-squared test for given probabilities
+## 
+## data:  cardiacdeaths
+## X-squared = 23.273, df = 6, p-value = 0.0007101
+Hypothesis Test: Ho: that deaths are evenly distributed over the days of the week Ha: at least one death is not distributed evenly throughout the days of the week.
+
+Test/Assumptions: The Chi-square test of independence checks whether two variables are likely to be related or not. We have counts for two categorical or nominal variables. We also have an idea that the two variables are not related. The test gives us a way to decide if our idea is plausible or not. We can see that the expected counts are at least 5 which meet our assumptions and we can use the chi-squared test.
+
+Results: X-squared = 23.273 p-value = 0.0007101
+
+Conclusion: Since the p-value is 0.0007. We would reject the null, therefore we would have sufficient enough evidence to conclude that at least one death is not distributed evenly throughout the week.
