@@ -1,0 +1,109 @@
+--
+title: ""
+author: ""
+date: "3/2/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+```
+
+## Exercise 1
+
+In lecture, you were given the following definitions for the one-way ANOVA model.
+
+\[SSB=\sum_{i=1}^m \sum_{j=1}^{n_i}(\overline{X}_{i.}-\overline{X}_{..})^2\]
+
+\[SSE=\sum_{i=1}^m \sum_{j=1}^{n_i}(X_{ij}-\overline{X}_{i.})^2\]
+
+\[SST=\sum_{i=1}^m \sum_{j=1}^{n_i}(X_{ij}-\overline{X}_{..})^2\]
+
+
+a. Show that 
+\[SSB=\sum_{i=1}^m \sum_{j=1}^{n_i}(\overline{X}_{i.}-\overline{X}_{..})^2=\left(\sum_{i=1}^m n_i\overline{X}_{i.}^2\right)-n\overline{X}_{..}^2.\] You can do this and part b by hand and upload an image/photo of your work.
+b. Show that $SST=SSB+SSE$.  Hint: subtract and add the same term ($\overline{X}_{i.}$) inside SST. 
+
+
+## Exercise 2
+
+Measurements of Ozone were taken daily over five months and it is of interest to determine if mean ozone measurement varies by month. Fill in the missing values in the ANOVA table.  Then use the pf command in R to get the p-value.  Give all steps of the hypothesis test.
+
+|   Source    |  df  |   Sum of Sq   |    Mean Sq    |    F   |  p-value    |
+|:------------|-----:|--------------:|--------------:|-------:|--------------------:|
+|  Between      |  4 |  29438       |  7359.5       | |  8.54      | 4.796491e-06
+|  Within   | 111   |  95705        |   862.21        |        |         |
+|  Total   |  115  |  125143       |           |        |         |
+
+
+```{r Ex2}
+pf(8.54, 4, 111, lower.tail = FALSE)
+# 1. Ho: All of the population means are equal    Ha: The population means are not all equal
+# 2. We will use an ANOVA and an F-test since we are comparing the equality of means.
+# 3. The value of the test statistic (F) is MSB/MSE = 7359.5/862.21 = 8.54
+# 4. The p-value of the test is 4.7965x10-6 or approximately 0.
+# 5. Since p-value is less than 0.05, we will reject the null hypothesis and can say that there is a difference between means.
+```
+
+
+## Exercise 3
+a. Make a boxplot of the defects by line for the following manufacturing data.
+b. Perform a Kruskal-Wallace test.  Include all parts of the test.
+c. Perform a one-way anova and compare results.  Check the degrees of freedom.  If they are not correct, make sure R is treating line as a factor.
+```{r}
+line1=c(6, 38, 3, 17, 11, 30,15, 16, 25, 5)
+line2=c(34, 28, 42, 13, 40, 31, 9, 32, 39, 27)
+line3=c(13, 35, 19, 4, 29, 0, 7, 33, 18, 24)
+defects=c(line1, line2, line3)
+line=c(rep(1, 10), rep(2, 10), rep(3, 10))
+manufacturing=as.data.frame(cbind(line=as.factor(line), defects))
+
+boxplot(defects~line)
+kruskal.test(defects~line)
+#1. Ho: The medians of the sample are all the same Ha: At least two of the medians are different.
+#2. We are using Krusal Wallace test because of non-normality and small sample sizes.
+#3. The chi-squared test statistic is equal to 6.0988
+#4. The p-value of this test statistic is 0.04739
+#5. Since the p-value is less than 0.05, we can reject the null hypothesis and can say that the medians are not all the same.
+aovdefects = aov(defects~line)
+summary(aovdefects)
+```
+
+
+## Exercise 4
+
+The warpbreaks data set in the base package gives data on number of breaks when weaving for two types of wool (A and B) and three levels of tension (L, M, H).
+
+a. Construct a grouped boxplot of breaks. Comment on how the centers of data differ for the different wools and tensions.
+b. Use group_by and summarize in dplyr to create a dataframe called warpmeans of group means with variables wool, tension, and breakmean. Construct an interaction plot of these means.  Comment on whether there looks to be an interaction.
+c. Use two way anova to test for main effects of wool and tension and for an interaction effect.  Store the aov model as an object called warpaov. Give all steps of your hypothesis test.  Proceed with the aov even though sample sizes are small and normality is difficult to assess.
+d. An attribute of the aov class that we did not look at in lecture is the coefficients.  Type coef(warpaov) to see the estimated effects.  Note that the treatment effects do not sum to zero as in the statistical model we used in lecture.  Instead one of the factor levels is chosen as the reference level and the other effects are given relative to the reference level.  Which group was used by R for the reference group in this model?  
+
+```{r Ex5}
+ggplot(warpbreaks, aes(y=breaks, x=tension, fill=wool))+
+  geom_boxplot()
+
+warpmeans = warpbreaks %>%
+  group_by(wool, tension) %>%
+  summarize(breakmean = mean(breaks))
+ggplot(warpmeans, aes(x = tension, y = breakmean, color = wool))+
+  geom_line(aes(group = wool))+
+  geom_point()+
+  labs(x = "Tension", y = "Breaks", title = "Interaction Plot")
+#Since the lines are not parallel, we can say there appears to be an interaction
+
+warpaov = aov(breaks~tension+wool+tension:wool, data = warpbreaks)
+summary(warpaov)
+# 1. Ho: The Interaction effects are all zero, Ho: The means of all levels of tension are equal, Ho: The means of all levels of wool are equal
+# 2. We will use a two-way ANOVA with interaction since we are comparing the equality of means and the interactions between the factors.
+# 3. The test statistic to test for interaction is F = 4.189
+# 4. The p-value associated with out test stastic is 0.021044
+# 5. Since our p-value is less than 0.05, we can say that there is an interaction between tension and wool.
+
+coef(warpaov)
+# Based off of the output, it appears that WoolB was chsoen as the reference group in the model
+```
+
+
