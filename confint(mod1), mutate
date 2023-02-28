@@ -1,0 +1,181 @@
+---
+title: ""
+author: "Group 3"
+date: ""
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lme4)
+```
+
+## Exercise 1
+
+The file extrapop.csv (from Hox, Moerbeck, and van der Schoot) contains data on extraversion and popularity for school students.  The students are arranged in classes.  The goal of the analysis is to learn about the relationship between extraversion and popularity (slope).  In this exercise, you'll begin with exploratory data analysis.
+a. Import the data using a read.csv command.  View the data so you can see which variables are in which columns, or use the head command to see the first few rows.
+```{r}
+extrapop=read.csv("extrapop.csv")
+head(extrapop)
+
+```
+
+b. Make a table showing how many boys and girls are in each class (boys are 0 and girls are 1). 
+```{r}
+tab <- table(extrapop$gender, extrapop$class)
+rownames(tab) <- c("boys","girls")
+tab
+```
+
+c.  Compute the means of extraversion and popularity for girls and boys. Find the difference in mean popularity between girls and boys for each class.  Make a plot of these differences (your choice on plot type).
+```{r}
+a=extrapop %>%
+    filter(gender==0)
+mean(a$popular)
+
+b=extrapop %>%
+  filter(gender==0)
+mean(b$extrav)
+
+c=extrapop %>%
+  filter(gender==1)
+mean(c$popular)
+
+d=extrapop %>%
+  filter(gender==1)
+mean(d$extrav)
+
+
+meansvec=vector()
+for (n in 1:20)
+  {
+  e=extrapop %>%
+    select(gender, popular, class) %>%
+      filter(class==n)
+  
+  f=e %>%
+    filter(gender==0)
+  boymean=mean(f$popular)
+  
+  g=e %>%
+    filter(gender==1)
+  girlmean=mean(g$popular)
+  
+  meansvec[n]=girlmean-boymean
+  if(n==14){meansvec[n]=-boymean}
+}
+
+
+classvec=c(1:20)
+meansdf=data.frame(as.factor(classvec), meansvec)
+
+## boxplot of means
+ggplot(meansdf, aes(meansdf$classvec, meansdf$meansvec)) + geom_boxplot()
+
+## boxplot of differences in genders (middle line is mean for each gender)
+extrapop$gender = as.factor(extrapop$gender)
+ggplot(data=extrapop, aes(x=class, y=popular, group=gender, color = gender)) + geom_boxplot()
+
+```
+
+d. Make a plot with extraversion on the x-axis and popularity on the y-axis.  Include a regression line.
+```{r}
+#d.
+attach(extrapop)
+plot(extrav, popular)
+abline(lm(popular~extrav, data=extrapop))
+
+```
+
+e. Make a plot with extraversion on the x-axis and popularity on the y-axis, with the data color-coded by gender. Include a regression line for each gender (without confidence bands for the lines).  Add the option position="jitter" to your geom_point so that points do not overlap so much.  You can improve the labelling of the legend with the following add-on to your ggplot    scale_color_manual(name   =" Gender", labels = c("Boys", "Girls"), values = c("blue", "magenta"))
+```{r}
+ggplot(data=extrapop, aes(x = extrav, y = popular, color = gender)) + 
+  geom_point(position="jitter") + geom_smooth(method="lm",se=FALSE) + 
+  scale_color_manual(name   =" Gender", labels = c("Boys", "Girls"), values = c("blue", "magenta"))
+```
+
+f. Make a plot with extraversion on the x-axis and popularity on the y-axis, with the data color coded by class.  Include a regression line for each class, also without confidence bands. Add the option position=jitter to your geom_point so that points do not overlap so much.  Be sure that class is treated as a factor.
+```{r }
+#f.
+ggplot(data=extrapop, aes(x = extrav, y = popular, color = factor(class))) + 
+  geom_point(position="jitter") + geom_smooth(method="lm",se=FALSE)
+```
+
+## Exercise 2
+
+a. Fit a model called mod0 that includes only an intercept, but allows the intercept to vary by class.
+```{r}
+#a.
+mod0=lmer(popular~(1|class), data=extrapop)
+summary(mod0)
+```
+b. Fit a model called mod1 that includes a fixed effect of gender along with the fixed effect of extrav and allows intercept to vary by class.
+```{r}
+#b.
+mod1=lmer(popular~gender+extrav+(1|class), data=extrapop)
+summary(mod1)
+```
+c. Fit a model called mod2 that allows the effect of extrav and the intercept to vary by class.
+```{r}
+mod2=lmer(popular~gender+extrav+(1+extrav|class), data=extrapop)
+summary(mod2)
+```
+d. Fit a model called mod3 that allows the effects of extrav, gender, and the intercept to vary by class. (this may cause an error, but it's not a bad one)
+```{r}
+mod3=lmer(popular~gender+extrav+(1+extrav+gender|class), data=extrapop)
+summary(mod3)
+```
+e. Perform model selection. Which of these models do you prefer and why?  
+```{r }
+#e.
+anova(mod0, mod1, mod2, mod3)
+
+#interpret: We chose mod1 as our preferred model because it has the lowest BIC score and the second lowest AIC score. We placed more importance on the BIC score because BIC penalizes more for complexity and we want a model that achieves parsimony by not over fitting the data. Since the size of each class in this data set is relatively small (<27) we must remain cautious of over fitting.
+
+```
+
+
+## Exercise 3
+a. Use your preferred model to give a confidence interval for the fixed effect of extrav. (It's OK if you get a warning)
+```{r}
+#a.
+confint(mod1, level=0.95)
+```
+
+b. Fit a fixed effects only model (Call it mod4), find the CI for the slope of extrav, and comment on the comparison of the confidence interval for the slope of extrav to part a.
+```{r}
+mod4=lm(popular~gender+extrav, data=extrapop)
+summary(mod4)
+
+confint(mod4, level=0.95)
+
+#interpret: The confidence interval for mod4 is much wider for every coefficient compared to our preferred model, mod1. Additionally, the interval for mod1 implies that the intercept could be lower than the interval for mod4 suggests. The coefficient for girls covers roughly the same values for both intervals, but mod1 places confidence in a much smaller interval. The confidence interval for the coefficient of extraversion covers lower values for mod4 and higher values for mod1. While there is a slight overlap, these models seem to disagree on where to place confidence in the true effect of extraversion on popularity.
+```
+
+
+## Exercise 4
+a. Plot the residuals of mod 4 versus fit.   You can get the standard set of residual plots with just the plot command. How does the normalqq plot of residuals look?  Color the plot of residuals versus fits by by class.  Do you see any patterns?  To find the right names to make your color-coded plot, use attributes(mod4).  It's a good idea to add a jitter() command around your horizontal axis variable.  A legend for class would be nice too (extra credit).  You'll note that if you use col=extrapop$class, the colors will repeat.  A fix for this is to add a column to extrapop  raincolor=rainbow(20)[class], and use this column for the color in your plot.
+```{r}
+plot(residuals(mod4), jitter(mod4$fitted.values))
+qqnorm(residuals(mod4))
+# this plot is relatively linear in the middle quantiles, which implies that the data are fit well by the linear model. However, there is significant curvage towards the first and last quantiles which makes us wary of the fit of the linear model
+attach(extrapop)
+extrapop <- extrapop %>%
+  mutate(raincolor=rainbow(20)[class])
+plot(residuals(mod4), jitter(mod4$fitted.values), col=extrapop$raincolor)
+class = as.factor(class)
+legend("topleft", legend=levels(class),pch =16, cex = 0.5, col=unique(extrapop$raincolor))
+
+```
+
+b. Plot the residuals vs fit for your choice of mixed effect model and color by class.  You can get this with the plot command and add in a color argument.  How does this compare to part a?
+```{r}
+plot(residuals(mod1), jitter(fitted.values(mod1)), col=extrapop$raincolor)
+legend("topleft", legend=levels(class),pch =16, cex = 0.5, col=unique(extrapop$raincolor))
+
+# the residual plot for mod1 shows less grouping in the middle. It also appears that the colors are more evenly dispersed, whereas in mod4 Class 18 showed higher residuals and Class 6/7 showed lower residuals. Overall, the patterns in mod4 residual plot shows that it is a poor model while mod1 residual plot reinforces that is is a better model.
+
+```
